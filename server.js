@@ -1,9 +1,13 @@
 const express = require("express");
 const mongoose = require("mongoose");
+const cors = require("cors");
 const Shipment = require("./models/Shipment");
+
 const app = express();
 
+app.use(cors());
 app.use(express.json());
+
 
 // MongoDB Connection
 mongoose.connect(process.env.MONGO_URI)
