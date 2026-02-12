@@ -1,44 +1,37 @@
 const mongoose = require("mongoose");
 
-const ShipmentSchema = new mongoose.Schema({
-  trackingNumber: {
-    type: String,
-    required: true,
-    unique: true,
-  },
-  senderName: String,
-  receiverName: String,
-  origin: String,
-  destination: String,
-  status: {
-    type: String,
-    enum: [
-      "Processing",
-      "In Transit",
-      "Arrived at Hub",
-      "Out for Delivery",
-      "Delivered"
-    ],
-    default: "Processing",
-  },
-  currentLocation: String,
-  estimatedDelivery: Date,
+const shipmentSchema = new mongoose.Schema(
+  {
+    trackingNumber: { type: String, unique: true },
 
-  history: [
-    {
-      location: String,
-      message: String,
-      date: {
-        type: Date,
-        default: Date.now,
-      },
+    senderName: String,
+    senderAddress: String,
+ 
+    receiverName: String,
+    receiverAddress: String,
+    receiverPhone: String,
+
+    origin: String,
+    destination: String,
+
+    status: {
+      type: String,
+      enum: ["Processing", "In Transit", "Out for Delivery", "Delivered"],
+      default: "Processing",
     },
-  ],
 
-  createdAt: {
-    type: Date,
-    default: Date.now,
+    currentLocation: String,
+    estimatedDelivery: Date,
+
+    history: [
+      {
+        location: String,
+        message: String,
+        date: { type: Date, default: Date.now },
+      },
+    ],
   },
-});
+  { timestamps: true }
+);
 
-module.exports = mongoose.model("Shipment", ShipmentSchema);
+module.exports = mongoose.model("Shipment", shipmentSchema);
