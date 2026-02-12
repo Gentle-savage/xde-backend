@@ -12,10 +12,29 @@ const ShipmentSchema = new mongoose.Schema({
   destination: String,
   status: {
     type: String,
+    enum: [
+      "Processing",
+      "In Transit",
+      "Arrived at Hub",
+      "Out for Delivery",
+      "Delivered"
+    ],
     default: "Processing",
   },
   currentLocation: String,
   estimatedDelivery: Date,
+
+  history: [
+    {
+      location: String,
+      message: String,
+      date: {
+        type: Date,
+        default: Date.now,
+      },
+    },
+  ],
+
   createdAt: {
     type: Date,
     default: Date.now,
