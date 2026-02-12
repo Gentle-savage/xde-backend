@@ -1,6 +1,7 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
+const bcrypt = require("bcryptjs");
 const Shipment = require("./models/Shipment");
 
 const app = express();
@@ -8,24 +9,112 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// =======================
-// MongoDB Connection
-// =======================
+// ============================
+// MONGODB CONNECTION
+// ============================
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB Connected Successfully"))
   .catch((err) => console.log("MongoDB Connection Error:", err));
 
-// =======================
-// Generate Tracking Number
-// =======================
+// ============================
+// ADMIN MODEL
+// ============================
+const adminSchema = new mongoose.Schema({
+  password: String,
+});
+
+const Admin = mongoose.model("Admin", adminSchema);
+
+// ============================
+// INITIALIZE ADMIN (ONLY IF NOT EXISTS)
+// ============================
+async function initializeAdmin() {
+  const existingAdmin = await Admin.findOne();
+
+  if (!existingAdmin) {
+    const hashedPassword = await bcrypt.hash("XDE2026Secure", 10);
+
+    await Admin.create({
+      password: hashedPassword,
+    });
+
+    console.log("Default Admin Created");
+  }
+}
+
+initializeAdmin();
+
+// ============================
+// ADMIN LOGIN
+// ============================
+app.post("/admin-login", async (req, res) => {
+  const { password } = req.body;
+
+  const admin = await Admin.findOne();
+  if (!admin) return res.status(500).json({ message: "Admin not found" });
+
+  const isMatch = await bcrypt.compare(password, admin.password);
+
+  if (!isMatch) {
+    return res.status(401).json({ message: "Invalid password" });
+  }
+
+  res.json({ success: true });
+});
+
+// ============================
+// ADMIN CHANGE PASSWORD
+// ============================
+app.post("/admin-change-password", async (req, res) => {
+  const { oldPassword, newPassword } = req.body;
+
+  const admin = await Admin.findOne();
+  if (!admin) return res.status(500).json({ message: "Admin not found" });
+
+  const isMatch = await bcrypt.compare(oldPassword, admin.password);
+
+  if (!isMatch) {
+    return res.status(401).json({ message: "Old password incorrect" });
+  }
+
+  const newHash = await bcrypt.hash(newPassword, 10);
+  admin.password = newHash;
+  await admin.save();
+
+  res.json({ message: "Password updated successfully" });
+});
+
+// ============================
+// ADMIN RESET PASSWORD (MASTER RESET)
+// ============================
+// 🔐 YOUR SECRET RESET KEY:
+const MASTER_RESET_KEY = "XDE_MASTER_KEY_94721";
+
+app.post("/admin-reset-password", async (req, res) => {
+  const { secretKey, newPassword } = req.body;
+
+  if (secretKey !== MASTER_RESET_KEY) {
+    return res.status(403).json({ message: "Unauthorized reset attempt" });
+  }
+
+  const admin = await Admin.findOne();
+  if (!admin) return res.status(500).json({ message: "Admin not found" });
+
+  const newHash = await bcrypt.hash(newPassword, 10);
+  admin.password = newHash;
+  await admin.save();
+
+  res.json({ message: "Admin password reset successfully" });
+});
+
+// ============================
+// TRACKING SYSTEM
+// ============================
 function generateTrackingNumber() {
   return "XDE" + Math.floor(100000000 + Math.random() * 900000000);
 }
 
-// =======================
-// Create Shipment
-// =======================
 app.post("/create-shipment", async (req, res) => {
   try {
     const shipment = new Shipment({
@@ -46,9 +135,6 @@ app.post("/create-shipment", async (req, res) => {
   }
 });
 
-// =======================
-// Update Shipment Status
-// =======================
 app.post("/update-status/:trackingNumber", async (req, res) => {
   try {
     const shipment = await Shipment.findOne({
@@ -75,9 +161,6 @@ app.post("/update-status/:trackingNumber", async (req, res) => {
   }
 });
 
-// =======================
-// Track Shipment
-// =======================
 app.get("/track/:trackingNumber", async (req, res) => {
   try {
     const shipment = await Shipment.findOne({
@@ -94,16 +177,17 @@ app.get("/track/:trackingNumber", async (req, res) => {
   }
 });
 
-// =======================
-// Get All Shipments (Admin Dashboard)
-// =======================
 app.get("/all-shipments", async (req, res) => {
-  try {
-    const shipments = await Shipment.find().sort({ createdAt: -1 });
-    res.json(shipments);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+  const shipments = await Shipment.find().sort({ createdAt: -1 });
+  res.json(shipments);
+});
+
+app.delete("/delete-shipment/:trackingNumber", async (req, res) => {
+  await Shipment.findOneAndDelete({
+    trackingNumber: req.params.trackingNumber,
+  });
+
+  res.json({ message: "Shipment deleted successfully" });
 });
 
 app.get("/", (req, res) => {
