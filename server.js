@@ -25,6 +25,12 @@ app.post("/create-shipment", async (req, res) => {
     const shipment = new Shipment({
       trackingNumber: generateTrackingNumber(),
       ...req.body,
+      history: [
+        {
+          location: req.body.origin,
+          message: "Shipment created",
+        },
+      ],
     });
 
     await shipment.save();
